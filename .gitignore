@@ -1,0 +1,44 @@
+# Python bytecode, test data, build metadata, and virtual environments
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+.venv/
+venv/
+env/
+
+# Build and package artefacts
+build/
+dist/
+*.egg
+
+# Generated experiment and application artefacts
+outputs/
+data/
+datasets/
+*.npz
+
+# Local editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# LaTeX and other document build artefacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml
+*.synctex.gz

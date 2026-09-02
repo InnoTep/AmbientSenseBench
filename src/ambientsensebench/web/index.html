@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AmbientSenseBench Explorer</title>
+    <link rel="stylesheet" href="/app.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">AMBIENT SENSING BENCHMARK</p>
+        <h1>Scenario Explorer</h1>
+        <p class="subtitle">Generate a synthetic routine trajectory and inspect local anomaly alerts.</p>
+      </header>
+
+      <section class="controls" aria-label="Scenario controls">
+        <label>
+          Scenario
+          <select id="scenario"></select>
+        </label>
+        <label>
+          Seed
+          <input id="seed" type="number" value="42" step="1">
+        </label>
+        <button id="generate" type="button">Generate scenario</button>
+      </section>
+
+      <p id="status" class="status" role="status">Choose a scenario and generate its 365-day trajectory.</p>
+
+      <section id="summary" class="summary" hidden aria-label="Scenario summary">
+        <article>
+          <span>Routine-change days</span>
+          <strong id="change-days">0</strong>
+        </article>
+        <article>
+          <span>Alerts after baseline</span>
+          <strong id="alerts">0</strong>
+        </article>
+        <article>
+          <span>Fixed threshold</span>
+          <strong id="threshold">0</strong>
+        </article>
+      </section>
+
+      <section id="visuals" hidden>
+        <div class="chart-header">
+          <div>
+            <p class="eyebrow">SIMULATED TRAJECTORY</p>
+            <h2>Severity and alerts</h2>
+          </div>
+          <p id="scenario-description" class="subtitle"></p>
+        </div>
+        <svg id="severity-chart" class="chart" role="img" aria-label="Simulated severity and anomaly alerts by day"></svg>
+
+        <div class="chart-header feature-header">
+          <div>
+            <p class="eyebrow">DAILY FEATURE</p>
+            <h2>Behavioural signal</h2>
+          </div>
+          <label>
+            Feature
+            <select id="feature"></select>
+          </label>
+        </div>
+        <svg id="feature-chart" class="chart" role="img" aria-label="Selected behavioural feature by day"></svg>
+
+        <section class="day-detail" aria-label="Selected day">
+          <label>
+            Selected day
+            <input id="day" type="range" min="1" max="365" value="1">
+          </label>
+          <output id="day-output"></output>
+        </section>
+      </section>
+
+      <p class="note">Synthetic research data only. Labels indicate simulated routine states and are not clinical findings.</p>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

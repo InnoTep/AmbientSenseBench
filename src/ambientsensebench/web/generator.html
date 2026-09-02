@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AmbientSenseBench — Synthetic Data Generator</title>
+  <link rel="stylesheet" href="/generator.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1>AmbientSenseBench</h1>
+    <p class="tagline">Synthetic ambient-sensing data generator for privacy-preserving home-routine monitoring</p>
+    <p class="disclaimer">
+      Scenarios model changes in daily routine studied as a behavioural proxy in mental-health
+      research. They are synthetic data generated from explicit assumptions — not clinical data,
+      diagnostic labels, or evidence of performance with real residents.
+    </p>
+  </header>
+
+  <main class="layout">
+    <section class="panel controls" aria-label="Generation controls">
+      <h2>1 · Configure</h2>
+
+      <label class="field">
+        <span>Start from preset</span>
+        <select id="preset"></select>
+      </label>
+
+      <div class="field-row">
+        <label class="field">
+          <span>Days</span>
+          <input id="days" type="number" min="60" max="1095" step="1" value="365" />
+        </label>
+        <label class="field">
+          <span>Seed</span>
+          <input id="seed" type="number" step="1" value="42" />
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Differential privacy (ε on daily features)</span>
+        <select id="dp-epsilon">
+          <option value="">Off (raw features)</option>
+          <option value="0.5">ε = 0.5 (stronger privacy)</option>
+          <option value="1">ε = 1.0 (reference)</option>
+          <option value="2">ε = 2.0 (weaker privacy)</option>
+        </select>
+      </label>
+
+      <fieldset class="field sensors">
+        <legend>Sensors in exported raw stream</legend>
+        <div id="sensor-list" class="sensor-list"></div>
+        <p class="hint">Filters the exported <code>events.csv</code> only. Daily features and the
+          detector preview always use the full instrumentation.</p>
+      </fieldset>
+
+      <div class="episodes">
+        <div class="episodes-header">
+          <h3>Routine-change episodes</h3>
+          <button id="add-episode" type="button" class="ghost">+ Add episode</button>
+        </div>
+        <div id="episode-list"></div>
+        <p class="hint">
+          An <strong>episode</strong> rises to a peak severity and recovers; a <strong>monotone</strong>
+          drift rises and stays. Severity interpolates the euthymic-baseline and distress profiles.
+        </p>
+      </div>
+
+      <button id="generate" type="button" class="primary">Generate dataset</button>
+      <p id="status" class="status" role="status"></p>
+    </section>
+
+    <section class="panel results" id="results" hidden aria-label="Results">
+      <h2>2 · Inspect &amp; download</h2>
+
+      <div class="summary" id="summary"></div>
+
+      <div class="downloads" id="downloads"></div>
+
+      <div class="chart-block">
+        <h3>Simulated routine-change trajectory</h3>
+        <p class="chart-note">
+          Shaded band = training window · vertical shading = simulated change days ·
+          orange points = fixed-threshold Isolation Forest alerts.
+        </p>
+        <svg id="severity-chart" role="img" aria-label="Severity trajectory"></svg>
+      </div>
+
+      <div class="chart-block">
+        <div class="chart-controls">
+          <h3>Behavioural feature</h3>
+          <select id="feature"></select>
+        </div>
+        <svg id="feature-chart" role="img" aria-label="Feature trajectory"></svg>
+      </div>
+
+      <div class="day-detail">
+        <label class="field">
+          <span>Inspect day: <output id="day-output"></output></span>
+          <input id="day" type="range" min="1" max="365" value="1" />
+        </label>
+        <p id="day-line" class="day-line"></p>
+      </div>
+    </section>
+  </main>
+
+  <script src="/generator.js"></script>
+</body>
+</html>

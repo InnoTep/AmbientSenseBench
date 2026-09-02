@@ -1,0 +1,119 @@
+# Behavioral profiles for synthetic data generation.
+#
+# Two states only (binary scheme: euthymic vs distress).
+#  - baseline: euthymic baseline (no significant stress/anxiety).
+#  - distress: stress/anxiety period (encompasses what was previously
+#              modeled as 'mild/chronic stress' and 'acute anxiety').
+#              Severity is modeled as a continuum via the sigmoid
+#              transition (see thesis section 5.2.2), not as a separate class.
+#
+# Distributional notation:
+#   N(mean, std) for Gaussian-driven features.
+#   Poisson(lambda) for count features (night_lambda).
+#
+# transition_matrix: 4x4 first-order Markov matrix over rooms.
+#   Row order = column order = [bedroom, livingroom, kitchen, hallway].
+#   Each row sums to 1.0.
+#   Auto-transitions (diagonal) are sampled but filtered out by
+#   extract_room_transition_entropy, so high diagonal values
+#   translate into fewer effective transitions (clinical correlate
+#   of behavioral constriction).
+scenario_seed_offsets:
+  P01: 101
+  P02: 202
+  P03: 303
+  P04: 404
+  
+baseline:
+  # Sleep and wake (anchored to normative adult ranges)
+  wake_mean: 7.5
+  wake_std: 0.5
+  sleep_mean: 7.5
+  sleep_std: 0.5
+
+  # Meals, social, night activity
+  meal_mean: 3.0
+  meal_std: 0.5
+  social_mean: 2.5
+  social_std: 0.8
+  night_lambda: 0.53
+
+  # Mobility and kitchen activity (normalized to baseline mean = 1.0)
+  mobility_mean: 1.0
+  mobility_std: 0.15
+  kitchen_mean: 1.0
+  kitchen_std: 0.15
+
+  # Evening routine consistency (0.0 = inconsistent, 1.0 = perfectly consistent)
+  evening_consistency_mean: 0.95
+  evening_consistency_std: 0.1
+  transition_entropy_mean: 0.95
+  transition_entropy_std: 0.05
+  # Room transition matrix (Markov chain over [bedroom, livingroom, kitchen, hallway]).
+  # Distributed mobility, hallway as natural hub, no dominant loops.
+  # Expected effect: high transition entropy, balanced room usage.
+  transition_matrix:
+    bedroom:    [0.10, 0.25, 0.20, 0.45]
+    livingroom: [0.15, 0.20, 0.25, 0.40]
+    kitchen:    [0.10, 0.30, 0.20, 0.40]
+    hallway:    [0.30, 0.30, 0.30, 0.10]
+
+distress:
+  # Sleep and wake: earlier waking, shorter and more variable sleep.
+  # Values cover the range previously split between 'stress' and 'anxiety';
+  # severity within the episode is driven by the sigmoid transition in 5.2.2.
+  wake_mean: 6.0
+  wake_std: 1.0
+  sleep_mean: 5.5
+  sleep_std: 1.0
+
+  # Meals reduced, social reduced (withdrawal), night activity increased.
+  meal_mean: 1.8
+  meal_std: 0.7
+  social_mean: 1.0
+  social_std: 0.7
+  night_lambda: 3.0
+
+  # Mobility reduced, kitchen activity reduced (appetite disruption + withdrawal).
+  mobility_mean: 0.7
+  mobility_std: 0.25
+  kitchen_mean: 0.6
+  kitchen_std: 0.25
+
+  # Evening routine disrupted.
+  evening_consistency_mean: 0.55
+  evening_consistency_std: 0.25
+  transition_entropy_mean: 0.8
+  transition_entropy_std: 0.18
+  # Room transition matrix.
+  # Behavioral constriction: high auto-transitions (more time in a single room),
+  # bedroom as refuge (high mass into bedroom from hallway), repetitive
+  # kitchen<->livingroom loops (pacing / stress-eating proxy).
+  # Expected effect: lower transition entropy (fewer effective transitions,
+  # concentrated on a small set of pairs), consistent with Stubbs et al. 2017,
+  # Steptoe & Kivimaki 2012, Canzian & Musolesi 2015.
+  transition_matrix:
+    bedroom:    [0.45, 0.10, 0.05, 0.40]
+    livingroom: [0.10, 0.40, 0.25, 0.25]
+    kitchen:    [0.05, 0.30, 0.35, 0.30]
+    hallway:    [0.45, 0.20, 0.20, 0.15]
+
+
+  #normalisation policy
+feature_normalisation:
+  mobility_score:
+  # Block 1 decision
+    reference_events: 9.4
+  kitchen_activity_score:
+    reference_events: 11.2
+
+feature_validation:
+  wake_time: ks-gaussian
+  sleep_hours: ks-gaussian
+  mobility_score: ks-gaussian
+  kitchen_activity_score: ks-gaussian
+  meal_count: moment-only
+  social_proxy: moment-only
+  night_activity: moment-only
+  room_transition_entropy: moment-only
+  evening_routine_consistency: moment-only    
