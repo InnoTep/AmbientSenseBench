@@ -1,11 +1,11 @@
 # Behavioral profiles for synthetic data generation.
 #
-# Two states only (binary scheme: euthymic vs distress).
-#  - baseline: euthymic baseline (no significant stress/anxiety).
+# Two states only (binary scheme: baseline vs distress).
+#  - baseline: settled baseline (no significant stress/anxiety).
 #  - distress: stress/anxiety period (encompasses what was previously
 #              modeled as 'mild/chronic stress' and 'acute anxiety').
-#              Severity is modeled as a continuum via the sigmoid
-#              transition (see thesis section 5.2.2), not as a separate class.
+#              Severity is modeled as a continuum via the scenario's sigmoid
+#              transition (see docs/generation-mechanism.md), not as a separate class.
 #
 # Distributional notation:
 #   N(mean, std) for Gaussian-driven features.
@@ -61,7 +61,7 @@ baseline:
 distress:
   # Sleep and wake: earlier waking, shorter and more variable sleep.
   # Values cover the range previously split between 'stress' and 'anxiety';
-  # severity within the episode is driven by the sigmoid transition in 5.2.2.
+  # severity within the episode is driven by the scenario's sigmoid transition.
   wake_mean: 6.0
   wake_std: 1.0
   sleep_mean: 5.5
@@ -102,7 +102,7 @@ distress:
   #normalisation policy
 feature_normalisation:
   mobility_score:
-  # Block 1 decision
+  # baseline-calibrated reference daily event count
     reference_events: 9.4
   kitchen_activity_score:
     reference_events: 11.2

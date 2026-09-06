@@ -6,6 +6,10 @@ The main data path is:
 profiles -> raw events -> daily features -> detector scores -> result tables
 ```
 
+Event generation is feature-first: each day's feature values are sampled from the active
+profile and then rendered as events for the shared extractor to read back. See
+[`generation-mechanism.md`](generation-mechanism.md) for the per-feature mechanism.
+
 | Files | Purpose |
 | --- | --- |
 | `config/profiles.yaml`, `generate_raw_data.py`, `generate_scenarios.py` | Profiles, seeded event generation, and scenario severity. |

@@ -61,6 +61,7 @@ Both use port 8765 by default.
 
 - [`docs/architecture.md`](docs/architecture.md): package layout and protocol rules.
 - [`docs/benchmark-protocol.md`](docs/benchmark-protocol.md): benchmark design.
+- [`docs/generation-mechanism.md`](docs/generation-mechanism.md): how events are generated.
 - [`docs/reproducibility.md`](docs/reproducibility.md): extended 25-seed experiments.
 - [`docs/app.md`](docs/app.md): app API and Docker instructions.
 - [`docs/data-card.md`](docs/data-card.md): generated-data scope and limitations.

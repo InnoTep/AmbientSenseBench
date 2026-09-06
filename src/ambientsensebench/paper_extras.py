@@ -48,7 +48,7 @@ from .wp6_evaluation import (
 
 MODELS = tuple(MODEL_LABELS)
 
-# KS alignment thresholds (from profiles/thesis): strong vs acceptable.
+# KS alignment thresholds fixed a priori in the benchmark's validation protocol: strong vs acceptable.
 STRONG_KS, STRONG_ERR = 0.15, 0.10
 ACCEPT_KS, ACCEPT_ERR = 0.30, 0.20
 

@@ -1,4 +1,9 @@
 import pandas as pd
+import pytest
+
+# matplotlib is an install extra, so skip rather than fail collection when a base
+# install is used.
+pytest.importorskip("matplotlib", reason="install .[dev] to run the figure tests")
 
 from ambientsensebench.plot_benchmark import create_benchmark_figures
 

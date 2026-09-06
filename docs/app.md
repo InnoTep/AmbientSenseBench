@@ -3,8 +3,10 @@
 The generation app is a small, dependency-light web interface for producing
 synthetic ambient-sensing datasets. It exposes the same raw-event generator,
 daily-feature extractor, and baseline-only Isolation Forest scoring used by the
-reference benchmark, but lets a user define an arbitrary routine-change
-trajectory instead of choosing one of the four fixed scenarios.
+reference benchmark, but lets a user compose a custom routine-change
+trajectory instead of choosing one of the four fixed scenarios. The home,
+sensor vocabulary, and baseline/distress routine profiles are fixed: the app
+varies the severity timeline, not the resident or the dwelling.
 
 The scenarios model changes in daily routine studied as a behavioural proxy in
 mental-health research. They are synthetic data generated from explicit
@@ -36,8 +38,8 @@ ambientsensebench app --host 127.0.0.1 --port 8765 --output outputs/app
 - **Episodes**: one to six routine-change episodes. Each episode is either an
   *episode* (rises to a peak severity and recovers) or a *monotone* drift
   (rises and stays). Onset, offset, smoothness (tau), and peak severity are
-  configurable. Severity in [0, 1] interpolates the euthymic-baseline and
-  distress behavioural profiles.
+  configurable. Severity in [0, 1] interpolates the baseline and distress
+  behavioural profiles.
 - **Differential privacy**: optionally add day-level Laplace noise (epsilon
   0.5, 1.0, or 2.0) to the daily features, reproducing the WP7 privacy release.
 - **Sensors in the raw export**: choose which sensors appear in `events.csv`.

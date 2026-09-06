@@ -1,7 +1,7 @@
 """Parametric ("custom") scenario generation for the AmbientSenseBench app.
 
 This module generalises :func:`generate_scenarios.generate_scenario` so that a
-user can define an arbitrary routine-change trajectory from a list of episodes
+user can define a custom routine-change trajectory from a list of episodes
 instead of choosing one of the four fixed reference scenarios. It reuses the
 same raw-event generator, the same daily-feature extractor, and the same
 baseline/distress behavioural profiles, so the generated data is directly
@@ -19,7 +19,7 @@ An episode is a dictionary with the keys::
 
 The severity on a given day is the maximum contribution across all episodes,
 matching the semantics of the built-in recurrent scenario. Severity in
-[0, 1] linearly interpolates the euthymic-baseline and distress behavioural
+[0, 1] linearly interpolates the baseline and distress behavioural
 profiles; a binary label (``distress`` when severity >= 0.5) is retained only
 for retrospective evaluation.
 """
