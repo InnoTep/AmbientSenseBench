@@ -30,6 +30,10 @@ datasets/
 Thumbs.db
 .idea/
 .vscode/
+.claude/
+
+# Local release checklist, not part of the published artefact
+RELEASE-SEQUENCE.md
 
 # LaTeX and other document build artefacts
 *.aux

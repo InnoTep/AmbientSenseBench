@@ -15,11 +15,14 @@ Phases (run in this order; later phases reuse phase-A artefacts):
                   detectors; recomputed-threshold and clean-threshold F1
   C  sensitivity -- alpha in {0.8, 1.2} regenerated at 25 seeds (alpha=1.0
                   equals phase A by construction)
-  E  sweeps    -- BOCPD hazard sweep, CUSUM h sweep, feature-set ablation,
+  D  sweeps    -- BOCPD hazard sweep, CUSUM h sweep, feature-set ablation,
                   P04 training-window sweep (P01-P03 onsets forbid longer
                   windows)
-  F  extras    -- tracemalloc incremental memory, event data volume,
+  E  extras    -- tracemalloc incremental memory, event data volume,
                   baseline feature correlation matrix
+
+Phases D and E were called E and F before release 1.0.0 (the letter D was
+unused); output-file names are unchanged.
 
 Usage:
     python -m ambientsensebench.tier2_experiments --phase A --workers 2 \
@@ -256,10 +259,10 @@ def run_phase_c(out, seeds, workers):
 
 
 # --------------------------------------------------------------------------
-# Phase E: hazard/h sweep, feature-set ablation, P04 window sweep
+# Phase D: hazard/h sweep, feature-set ablation, P04 window sweep
 # --------------------------------------------------------------------------
 
-def _phase_e_unit(args):
+def _phase_d_unit(args):
     kind, param, seed, scenario, scen_root = args
     seed_root = Path(scen_root) / f"seed-{seed}"
     frame = load_scenario(str(seed_root), scenario)
@@ -309,7 +312,7 @@ def _phase_e_unit(args):
     return rows
 
 
-def run_phase_e(out, seeds, workers, scen_root):
+def run_phase_d(out, seeds, workers, scen_root):
     units = []
     for s in seeds:
         for sc in SCENARIOS:
@@ -319,20 +322,20 @@ def run_phase_e(out, seeds, workers, scen_root):
         units.extend(("window", w, s, "P04", str(scen_root)) for w in P04_WINDOWS)
     rows = []
     with get_context("spawn").Pool(workers, initializer=_init_worker) as pool:
-        for i, chunk in enumerate(pool.imap_unordered(_phase_e_unit, units)):
+        for i, chunk in enumerate(pool.imap_unordered(_phase_d_unit, units)):
             rows.extend(chunk)
             if (i + 1) % 40 == 0:
                 pd.DataFrame(rows).to_csv(out / "param_sweeps.csv", index=False)
-                print(f"[E] {i + 1}/{len(units)} units", flush=True)
+                print(f"[D] {i + 1}/{len(units)} units", flush=True)
     pd.DataFrame(rows).to_csv(out / "param_sweeps.csv", index=False)
-    print("[E] done", flush=True)
+    print("[D] done", flush=True)
 
 
 # --------------------------------------------------------------------------
-# Phase F: tracemalloc incremental memory, data volume, correlations
+# Phase E: tracemalloc incremental memory, data volume, correlations
 # --------------------------------------------------------------------------
 
-def run_phase_f(out, scen_root):
+def run_phase_e(out, scen_root):
     import tracemalloc
 
     rows = []
@@ -381,12 +384,12 @@ def run_phase_f(out, scen_root):
             frames.append(frame[frame.severity <= 0.1][MODEL_INPUT_FEATURES])
     corr = pd.concat(frames).corr()
     corr.to_csv(out / "feature_correlation_baseline.csv")
-    print("[F] done", flush=True)
+    print("[E] done", flush=True)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Tier-2 experiment runner")
-    parser.add_argument("--phase", required=True, choices=list("ABCEF"))
+    parser.add_argument("--phase", required=True, choices=list("ABCDE"))
     parser.add_argument("--workers", type=int, default=2)
     parser.add_argument("--seeds", type=int, default=25)
     parser.add_argument("--output", type=Path, default=Path("outputs/tier2"))
@@ -401,10 +404,10 @@ def main():
         run_phase_b(args.output, seeds, args.workers, args.scenario_root)
     elif args.phase == "C":
         run_phase_c(args.output, seeds, args.workers)
+    elif args.phase == "D":
+        run_phase_d(args.output, seeds, args.workers, args.scenario_root)
     elif args.phase == "E":
-        run_phase_e(args.output, seeds, args.workers, args.scenario_root)
-    elif args.phase == "F":
-        run_phase_f(args.output, args.scenario_root)
+        run_phase_e(args.output, args.scenario_root)
 
 
 if __name__ == "__main__":

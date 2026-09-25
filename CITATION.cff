@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+message: "If you use AmbientSenseBench, please cite it using the metadata in this file."
+type: software
+title: "AmbientSenseBench: Reproducible Synthetic Event-Level Scenarios for Privacy-Aware Home-Routine Monitoring"
+version: 1.0.0
+date-released: 2026-09-25
+license: Apache-2.0
+repository-code: "https://github.com/InnoTep/AmbientSenseBench"
+# Add the Zenodo DOI once the release is archived:
+# identifiers:
+#   - type: doi
+#     value: 10.5281/zenodo.<record>
+#     description: "Archived release 1.0.0"
+authors:
+  - family-names: Jahanbakhsh
+    given-names: Negin
+    affiliation: "ETSIS de Telecomunicación, Universidad Politécnica de Madrid"
+    orcid: "https://orcid.org/0009-0004-3861-1226"
+  - family-names: Vega-Barbas
+    given-names: Mario
+    affiliation: "ETSIS de Telecomunicación, Universidad Politécnica de Madrid"
+    orcid: "https://orcid.org/0000-0003-4506-6284"
+  - family-names: Pau
+    given-names: Iván
+    affiliation: "ETSIS de Telecomunicación, Universidad Politécnica de Madrid"
+    orcid: "https://orcid.org/0000-0002-1183-4401"
+keywords:
+  - ambient sensing
+  - synthetic data
+  - anomaly detection
+  - smart home
+  - benchmark
+  - privacy-utility trade-off
+abstract: >-
+  AmbientSenseBench generates synthetic smart-home sensor events from
+  literature-grounded routine profiles, derives daily behavioural features
+  through a shared extraction pipeline, and evaluates unsupervised anomaly
+  detectors on four longitudinal routine-change scenarios, including under a
+  differentially private feature release. The data and labels are simulated
+  research artefacts, not clinical records.
