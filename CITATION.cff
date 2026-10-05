@@ -6,11 +6,11 @@ version: 1.0.0
 date-released: 2026-10-05
 license: Apache-2.0
 repository-code: "https://github.com/InnoTep/AmbientSenseBench"
-# Add the Zenodo DOI once the release is archived:
-# identifiers:
-#   - type: doi
-#     value: 10.5281/zenodo.<record>
-#     description: "Archived release 1.0.0"
+# The Zenodo DOI 
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.23164075
+    description: "Archived release 1.0.0"
 authors:
   - family-names: Jahanbakhsh
     given-names: Negin
