@@ -3,7 +3,7 @@ message: "If you use AmbientSenseBench, please cite it using the metadata in thi
 type: software
 title: "AmbientSenseBench: Reproducible Synthetic Event-Level Scenarios for Privacy-Aware Home-Routine Monitoring"
 version: 1.0.0
-date-released: 2026-09-25
+date-released: 2026-10-05
 license: Apache-2.0
 repository-code: "https://github.com/InnoTep/AmbientSenseBench"
 # Add the Zenodo DOI once the release is archived:
