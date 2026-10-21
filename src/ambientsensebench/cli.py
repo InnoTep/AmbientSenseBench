@@ -5,7 +5,13 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from .benchmark import DEFAULT_MODELS, parse_csv_argument, run_benchmark
+from .benchmark import (
+    DEFAULT_MODELS,
+    available_models,
+    load_plugins,
+    parse_csv_argument,
+    run_benchmark,
+)
 from .generate_scenarios import SCENARIOS, generate_scenario
 from .server import run_explorer, run_generator_app
 
@@ -83,6 +89,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="comma-separated detector identifiers",
     )
     benchmark_parser.add_argument(
+        "--plugin",
+        action="append",
+        default=[],
+        metavar="MODULE",
+        help="importable module that registers extra detectors (repeatable)",
+    )
+    benchmark_parser.add_argument(
         "--output",
         type=Path,
         default=Path("outputs/benchmark"),
@@ -121,9 +134,10 @@ def main() -> None:
 
     if args.command == "benchmark":
         try:
+            load_plugins(args.plugin)
             seeds = tuple(int(seed) for seed in parse_csv_argument(args.seeds))
             scenarios = parse_csv_argument(args.scenarios, SCENARIOS)
-            models = parse_csv_argument(args.models, DEFAULT_MODELS)
+            models = parse_csv_argument(args.models, available_models())
         except ValueError as error:
             raise SystemExit(str(error)) from error
 

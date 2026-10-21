@@ -27,6 +27,49 @@ profile and then rendered as events for the shared extractor to read back. See
 5. `evaluate_detector()` scores the test window. The alarm threshold is the 95th percentile
    of training scores.
 
+## Adding a detector
+
+A third-party detector joins the benchmark as a plugin, without changes to the package. A
+plugin is any object with
+
+```python
+fit_score(train_data, test_data) -> (train_scores, test_scores)
+```
+
+on the standardised arrays (40 training days and the test days, nine features each, in
+chronological order), where a larger score means a more anomalous day. Register it at the
+top level of an importable module:
+
+```python
+# my_detectors.py
+import numpy as np
+
+from ambientsensebench.benchmark import register_detector
+
+
+class MeanAbsDeviation:
+    def fit_score(self, train_data, test_data):
+        return np.abs(train_data).mean(axis=1), np.abs(test_data).mean(axis=1)
+
+
+register_detector("mean_abs", "Mean |z|", lambda training_rows: MeanAbsDeviation())
+```
+
+The factory receives the number of training days. Pass the module with `--plugin` (it must
+be importable, for example from the working directory or `PYTHONPATH`):
+
+```bash
+python -m ambientsensebench benchmark --plugin my_detectors --models isolation_forest,mean_abs
+python -m ambientsensebench.tier2_experiments --phase A --plugin my_detectors --workers 2 --seeds 25
+```
+
+The plugin then runs under exactly the protocol of the built-in detectors: training-only
+scaling, the 95th-percentile training threshold, AUPRC, fixed-threshold F1, and episode
+lead time. In `tier2_experiments` it joins phases A to E (the main run, the privacy sweep,
+the profile sweep, the feature-set and training-window ablations, and the memory profile);
+only the hazard and decision-interval sweeps, which belong to BOCPD and CUSUM, leave it out. Ids already used by a built-in detector or a reference
+baseline are rejected.
+
 ## Rules that affect results
 
 - A seed must reproduce the same generated data.

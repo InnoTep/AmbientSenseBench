@@ -14,7 +14,8 @@ Phases (run in this order; later phases reuse phase-A artefacts):
   B  dpsweep   -- Laplace release at eps in {0.1,0.5,1,2,5,10}; core
                   detectors; recomputed-threshold and clean-threshold F1
   C  sensitivity -- alpha in {0.8, 1.2} regenerated at 25 seeds (alpha=1.0
-                  equals phase A by construction)
+                  equals phase A by construction); --alphas extends the
+                  difficulty sweep, e.g. --alphas 0.4,0.6
   D  sweeps    -- BOCPD hazard sweep, CUSUM h sweep, feature-set ablation,
                   P04 training-window sweep (P01-P03 onsets forbid longer
                   windows)
@@ -47,7 +48,13 @@ from .apply_wp7_dp_noise import (
     MODEL_INPUT_FEATURES,
     apply_laplace_noise,
 )
-from .benchmark import MODEL_LABELS, _build_model, _score_model
+from .benchmark import (
+    MODEL_LABELS,
+    PLUGIN_DETECTORS,
+    _build_model,
+    _score_model,
+    load_plugins,
+)
 from .generate_scenarios import SCENARIOS, generate_scenario
 from .reference_baselines import BASELINE_LABELS, score_baseline
 from .sensitivity import write_perturbed_config
@@ -63,8 +70,11 @@ from .wp6_evaluation import (
 )
 from sklearn.metrics import average_precision_score
 
-CORE_MODELS = tuple(MODEL_LABELS)
+# Mutable so that plugin detectors (--plugin) join every phase, in the parent process
+# and in each worker.
+CORE_MODELS = list(MODEL_LABELS)
 ALL_MODELS = {**MODEL_LABELS, **BASELINE_LABELS}
+_PLUGINS: list[str] = []
 EPSILONS = (0.1, 0.5, 1.0, 2.0, 5.0, 10.0)
 # BOCPD hazard sweep, expressed as the expected run length 1/h used by the
 # constructor (hazard_lambda); 50 is the phase-A default.
@@ -78,13 +88,27 @@ FEATURE_SETS = {
 P04_WINDOWS = (60, 90)  # onset day 106; P01-P03 onsets (59, 44, 49) forbid > 40
 
 
-def _init_worker():
+def _activate_plugins(plugins):
+    load_plugins(plugins)
+    for model_id, (label, _) in PLUGIN_DETECTORS.items():
+        if model_id not in ALL_MODELS:
+            ALL_MODELS[model_id] = label
+            CORE_MODELS.append(model_id)
+
+
+def _pool(workers):
+    return get_context("spawn").Pool(workers, initializer=_init_worker,
+                                     initargs=(tuple(_PLUGINS),))
+
+
+def _init_worker(plugins=()):
     for var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
         os.environ[var] = "1"
+    _activate_plugins(plugins)
 
 
 def _score_any(model_id, train_data, test_data, n_train):
-    if model_id in MODEL_LABELS:
+    if model_id in MODEL_LABELS or model_id in PLUGIN_DETECTORS:
         model = _build_model(model_id, n_train)
         return _score_model(model_id, model, train_data, test_data)
     return score_baseline(model_id, train_data, test_data)
@@ -160,7 +184,7 @@ def run_phase_a(out, seeds, workers, scen_root):
     score_dir.mkdir(parents=True, exist_ok=True)
     units = [(s, sc, str(scen_root), str(score_dir)) for s in seeds for sc in SCENARIOS]
     rows = []
-    with get_context("spawn").Pool(workers, initializer=_init_worker) as pool:
+    with _pool(workers) as pool:
         for i, chunk in enumerate(pool.imap_unordered(_phase_a_unit, units)):
             rows.extend(chunk)
             if (i + 1) % 10 == 0:
@@ -192,7 +216,7 @@ def _phase_b_unit(args):
             alarms_fixed = (r["test_scores"] >= thr_clean).astype(int)
             rows.append({
                 "seed": seed, "scenario": scenario, "model_id": model_id,
-                "model": MODEL_LABELS[model_id], "epsilon": eps,
+                "model": ALL_MODELS[model_id], "epsilon": eps,
                 "auprc_dp": r["auprc"], "f1_dp_recomputed": r["f1"],
                 "f1_dp_cleanthr": compute_f1_at_fixed_threshold(r["y_test"], alarms_fixed),
                 "fp_dp_recomputed": r["fp"],
@@ -204,7 +228,7 @@ def _phase_b_unit(args):
 def run_phase_b(out, seeds, workers, scen_root):
     units = [(s, sc, str(scen_root), str(out / "scores")) for s in seeds for sc in SCENARIOS]
     rows = []
-    with get_context("spawn").Pool(workers, initializer=_init_worker) as pool:
+    with _pool(workers) as pool:
         for i, chunk in enumerate(pool.imap_unordered(_phase_b_unit, units)):
             rows.extend(chunk)
             if (i + 1) % 10 == 0:
@@ -232,23 +256,23 @@ def _phase_c_unit(args):
                 r = _evaluate_frame(frame, scenario, model_id)
                 rows.append({
                     "alpha": alpha, "seed": seed, "scenario": scenario,
-                    "model_id": model_id, "model": MODEL_LABELS[model_id],
+                    "model_id": model_id, "model": ALL_MODELS[model_id],
                     "auprc": r["auprc"], "f1": r["f1"],
                 })
     return rows
 
 
-def run_phase_c(out, seeds, workers):
+def run_phase_c(out, seeds, workers, alphas=(0.8, 1.2)):
     cfg_dir = out / "sens_cfg"
     cfg_dir.mkdir(parents=True, exist_ok=True)
     units = []
-    for alpha in (0.8, 1.2):
+    for alpha in alphas:
         cfg = cfg_dir / f"cfg_{alpha}.yaml"
         if not cfg.exists():
             write_perturbed_config(alpha, str(cfg))
         units.extend((alpha, s, str(cfg)) for s in seeds)
     rows = []
-    with get_context("spawn").Pool(workers, initializer=_init_worker) as pool:
+    with _pool(workers) as pool:
         for i, chunk in enumerate(pool.imap_unordered(_phase_c_unit, units)):
             rows.extend(chunk)
             if (i + 1) % 5 == 0:
@@ -321,7 +345,7 @@ def run_phase_d(out, seeds, workers, scen_root):
             units.extend(("features", fs, s, sc, str(scen_root)) for fs in FEATURE_SETS)
         units.extend(("window", w, s, "P04", str(scen_root)) for w in P04_WINDOWS)
     rows = []
-    with get_context("spawn").Pool(workers, initializer=_init_worker) as pool:
+    with _pool(workers) as pool:
         for i, chunk in enumerate(pool.imap_unordered(_phase_d_unit, units)):
             rows.extend(chunk)
             if (i + 1) % 40 == 0:
@@ -394,7 +418,13 @@ def main():
     parser.add_argument("--seeds", type=int, default=25)
     parser.add_argument("--output", type=Path, default=Path("outputs/tier2"))
     parser.add_argument("--scenario-root", type=Path, default=Path("outputs/tier2/scenarios"))
+    parser.add_argument("--plugin", action="append", default=[], metavar="MODULE",
+                        help="importable module that registers extra detectors (repeatable)")
+    parser.add_argument("--alphas", default="0.8,1.2",
+                        help="phase C only: comma-separated profile scale factors")
     args = parser.parse_args()
+    _PLUGINS.extend(args.plugin)
+    _activate_plugins(_PLUGINS)
 
     args.output.mkdir(parents=True, exist_ok=True)
     seeds = list(range(args.seeds))
@@ -403,7 +433,8 @@ def main():
     elif args.phase == "B":
         run_phase_b(args.output, seeds, args.workers, args.scenario_root)
     elif args.phase == "C":
-        run_phase_c(args.output, seeds, args.workers)
+        alphas = tuple(float(a) for a in args.alphas.split(",") if a.strip())
+        run_phase_c(args.output, seeds, args.workers, alphas)
     elif args.phase == "D":
         run_phase_d(args.output, seeds, args.workers, args.scenario_root)
     elif args.phase == "E":

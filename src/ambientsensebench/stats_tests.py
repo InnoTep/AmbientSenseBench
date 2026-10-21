@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import wilcoxon
 
+from .benchmark import MODEL_LABELS
 from .wp6_evaluation import compute_f1_at_fixed_threshold
 
 PERCENTILES = (80.0, 85.0, 90.0, 92.5, 95.0, 97.5, 99.0, 100.0)
@@ -92,6 +93,41 @@ def paired_tests(per_run: pd.DataFrame, metrics=("auprc", "f1_fixed_threshold"))
     return pd.DataFrame(rows)
 
 
+def pairwise_core_tests(per_run: pd.DataFrame,
+                        metrics=("auprc", "f1_fixed_threshold")) -> pd.DataFrame:
+    """Every pair of core detectors, Holm-corrected within each metric x scenario family.
+
+    Same machinery as ``paired_tests``; this is the full pairwise matrix behind the
+    paper's head-to-head comparisons (mean_diff is model_a minus model_b).
+    """
+    rows = []
+    core = list(MODEL_LABELS)
+    for metric in metrics:
+        for scenario, sgroup in per_run.groupby("scenario"):
+            wide = sgroup.pivot(index="seed", columns="model_id", values=metric)
+            cell = []
+            for i, model_a in enumerate(core):
+                for model_b in core[i + 1:]:
+                    diff = (wide[model_a] - wide[model_b]).to_numpy()
+                    if np.allclose(diff, 0):
+                        stat_p = 1.0
+                    else:
+                        stat_p = float(wilcoxon(diff, zero_method="wilcox",
+                                                alternative="two-sided").pvalue)
+                    lo, hi = bootstrap_ci(diff)
+                    cell.append({
+                        "metric": metric, "scenario": scenario,
+                        "model_a": model_a, "model_b": model_b,
+                        "mean_diff": float(diff.mean()), "ci95_lo": lo, "ci95_hi": hi,
+                        "rank_biserial": rank_biserial(diff), "p_raw": stat_p,
+                    })
+            for c, adj in zip(cell, holm(np.array([c["p_raw"] for c in cell]))):
+                c["p_holm"] = float(adj)
+                c["significant_5pct"] = bool(adj < 0.05)
+            rows.extend(cell)
+    return pd.DataFrame(rows)
+
+
 def score_derived_analyses(score_dir: Path, per_run: pd.DataFrame):
     """Percentile trace and persistence-rule F1 from stored per-day scores."""
     trace_rows, persist_rows = [], []
@@ -134,6 +170,7 @@ def main():
     per_run = pd.read_csv(args.input / "per_run_main.csv")
     tests = paired_tests(per_run)
     tests.to_csv(args.input / "stats_paired_tests.csv", index=False)
+    pairwise_core_tests(per_run).to_csv(args.input / "stats_pairwise_core.csv", index=False)
 
     trace, persist = score_derived_analyses(args.input / "scores", per_run)
     trace.to_csv(args.input / "threshold_percentile_trace.csv", index=False)

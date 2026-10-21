@@ -48,7 +48,8 @@ LOCATION_MAP = {
 }
 
 
-def aruba_daily_features(aruba_path: str) -> pd.DataFrame:
+def aruba_events_by_day(aruba_path: str) -> dict[str, list]:
+    """Aruba events mapped onto the benchmark vocabulary, grouped by calendar day."""
     by_day: dict[str, list] = defaultdict(list)
     with open(aruba_path) as handle:
         for row in csv.reader(handle):
@@ -66,9 +67,12 @@ def aruba_daily_features(aruba_path: str) -> pd.DataFrame:
                 if sensor_id is None:
                     continue
             by_day[date].append({"timestamp": ts, "sensor_id": sensor_id, "state": state})
+    return by_day
 
+
+def aruba_daily_features(aruba_path: str) -> pd.DataFrame:
     rows = []
-    for date, events in sorted(by_day.items()):
+    for date, events in sorted(aruba_events_by_day(aruba_path).items()):
         wake = extract_wake_time(events)
         if wake is None:
             continue

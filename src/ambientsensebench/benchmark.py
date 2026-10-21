@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
 from pathlib import Path
+from typing import Callable, Iterable
 
 os.environ.setdefault("LOKY_MAX_CPU_COUNT", "1")
 
@@ -16,6 +18,7 @@ from sklearn.neighbors import LocalOutlierFactor
 from sklearn.svm import OneClassSVM
 
 from .generate_scenarios import SCENARIOS, generate_scenario
+from .reference_baselines import BASELINE_LABELS
 from .temporal_detectors import BocpdDetector, CusumDetector
 from .wp6_evaluation import (
     compute_episode_level_lead_time,
@@ -37,6 +40,36 @@ MODEL_LABELS = {
 # detectors score each day independently.
 SEQUENTIAL_MODELS = ("bocpd", "cusum")
 DEFAULT_MODELS = tuple(MODEL_LABELS)
+
+# Third-party detectors (see docs/architecture.md, "Adding a detector"). A plugin is
+# built by ``factory(training_rows)`` and must expose
+# ``fit_score(train_data, test_data) -> (train_scores, test_scores)`` on the
+# standardised arrays, a larger score meaning a more anomalous day. Registered
+# plugins run under exactly the same protocol as the built-in detectors.
+PLUGIN_DETECTORS: dict[str, tuple[str, Callable[[int], object]]] = {}
+
+
+def register_detector(model_id: str, label: str, factory: Callable[[int], object]) -> None:
+    """Make a detector available to ``benchmark`` and ``tier2_experiments`` by id."""
+    if model_id in MODEL_LABELS or model_id in BASELINE_LABELS or model_id in PLUGIN_DETECTORS:
+        raise ValueError(f"Detector id already in use: {model_id}")
+    PLUGIN_DETECTORS[model_id] = (label, factory)
+
+
+def load_plugins(modules: Iterable[str]) -> None:
+    """Import the modules whose top level calls ``register_detector``."""
+    for name in modules:
+        importlib.import_module(name)
+
+
+def detector_label(model_id: str) -> str:
+    if model_id in PLUGIN_DETECTORS:
+        return PLUGIN_DETECTORS[model_id][0]
+    return MODEL_LABELS[model_id]
+
+
+def available_models() -> tuple[str, ...]:
+    return DEFAULT_MODELS + tuple(PLUGIN_DETECTORS)
 SUMMARY_METRICS = (
     "auprc",
     "f1_fixed_threshold",
@@ -48,6 +81,8 @@ SUMMARY_METRICS = (
 
 
 def _build_model(model_id: str, training_rows: int):
+    if model_id in PLUGIN_DETECTORS:
+        return PLUGIN_DETECTORS[model_id][1](training_rows)
     if model_id == "isolation_forest":
         return IsolationForest(
             n_estimators=100,
@@ -72,10 +107,10 @@ def _build_model(model_id: str, training_rows: int):
 
 
 def _score_model(model_id: str, model, train_data, test_data) -> tuple[np.ndarray, np.ndarray]:
-    if model_id in SEQUENTIAL_MODELS:
+    if model_id in SEQUENTIAL_MODELS or model_id in PLUGIN_DETECTORS:
         # Sequential detectors process train and test days in
         # chronological order; training scores feed only the fixed
-        # training-percentile threshold rule.
+        # training-percentile threshold rule. Plugins use the same call.
         train_scores, test_scores = model.fit_score(train_data, test_data)
         return np.asarray(train_scores), np.asarray(test_scores)
 
@@ -110,7 +145,7 @@ def evaluate_detector(
         "seed": seed,
         "scenario": scenario_id,
         "model_id": model_id,
-        "model": MODEL_LABELS[model_id],
+        "model": detector_label(model_id),
         "auprc": float(average_precision_score(y_test, test_scores)),
         "f1_fixed_threshold": compute_f1_at_fixed_threshold(y_test, alarms),
         "fixed_threshold": float(threshold),
@@ -149,7 +184,7 @@ def run_benchmark(
     if not seeds:
         raise ValueError("At least one seed is required")
     unknown_scenarios = set(scenarios).difference(SCENARIOS)
-    unknown_models = set(models).difference(MODEL_LABELS)
+    unknown_models = set(models).difference(available_models())
     if unknown_scenarios:
         raise ValueError(f"Unknown scenarios: {sorted(unknown_scenarios)}")
     if unknown_models:
