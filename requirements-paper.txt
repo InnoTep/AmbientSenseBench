@@ -1,0 +1,11 @@
+# Exact versions with which the paper's 25-seed reference run was reproduced on
+# 21 October 2026 (Python 3.12.4; all 800 rows of per_run_main.csv matched).
+# Install with:  python -m pip install -r requirements-paper.txt && python -m pip install -e .
+numpy==2.3.2
+pandas==2.3.2
+scikit-learn==1.5.2
+scipy==1.14.1
+PyYAML==6.0.2
+psutil==6.0.0
+matplotlib==3.11.1
+pytest==8.3.5

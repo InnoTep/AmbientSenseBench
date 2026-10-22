@@ -7,7 +7,10 @@ produce it. Commands run from the repository root after
 python -m pip install -e ".[dev]"
 ```
 
-with Python 3.10 or later. Generation is deterministic per scenario and seed: the same
+with Python 3.10 or later. For an exactly pinned environment, first run
+`python -m pip install -r requirements-paper.txt`: these are the versions (on Python 3.12.4)
+with which the 25-seed reference run was reproduced row for row on 21 October 2026.
+Generation is deterministic per scenario and seed: the same
 command on the same package version reproduces the same feature matrices
 (`tests/test_feature_matrix_freeze.py` pins the P01 seed-0 matrix). Record the package
 version, Git commit, Python and library versions, and machine details with any archived
@@ -74,23 +77,24 @@ Phase D covers only P04 because the first distress onsets of P01, P02 and P03 fa
 
 Every row below is produced by code in this repository. Numbering follows the revised
 manuscript (Table 8 is the Aruba injection; the former Table 8, best detector per alpha, is
-replaced by Figure 5). A rerun of Phase A on 21 October 2026 reproduced all 800 rows of the
+replaced by Figure 6). A rerun of Phase A on 21 October 2026 reproduced all 800 rows of the
 paper's `per_run_main.csv` exactly.
 
 | Paper item | Source file(s) | Command or derivation |
 | --- | --- | --- |
 | Table 1, feature sampling and rendering | none (documents `generate_raw_data.py`) | See [`generation-mechanism.md`](generation-mechanism.md) |
-| Figure 1, mean AUPRC and F1 across 25 seeds | `outputs/tier2/summary_core25.csv` (`paper_analyses --analysis summary`, from Phase A) | `python -m ambientsensebench figures --input outputs/tier2/summary_core25.csv --output outputs/tier2/figures` |
-| Figure 2, alarm composition and lead time | same | Same command; both figures are written together |
+| Figure 1, system architecture | none (schematic) | `python tools/architecture_figure.py` |
+| Figure 2, mean AUPRC and F1 across 25 seeds | `outputs/tier2/summary_core25.csv` (`paper_analyses --analysis summary`, from Phase A) | `python -m ambientsensebench figures --input outputs/tier2/summary_core25.csv --output outputs/tier2/figures` |
+| Figure 3, alarm composition and lead time | same | Same command; both figures are written together |
 | Table 2, reference baselines | `per_run_main.csv`, the three baseline rows | Mean `auprc` and `f1_fixed_threshold` by scenario and detector |
-| Figure 3, score-severity consistency (P04) | `severity_consistency.csv`, `severity_curve_p04.csv` | `python -m ambientsensebench.paper_analyses --analysis severity`: Spearman correlation between each stored test-window score and the simulated severity; the P04 curve is the mean within-run score percentile per tenth of severity |
+| Figure 4, score-severity consistency (P04) | `severity_consistency.csv`, `severity_curve_p04.csv` | `python -m ambientsensebench.paper_analyses --analysis severity`: Spearman correlation between each stored test-window score and the simulated severity; the P04 curve is the mean within-run score percentile per tenth of severity |
 | Table 3, distributional validation (200 groups) | `outputs/tier2/ks_validation25/ks_feature_summary.csv` | `python tools/run_ks_validation25.py` |
 | Table 4, AUPRC and F1 at epsilon = 1 | `dp_sweep.csv` (Phase B) rows with `epsilon == 1.0`; clean columns from `per_run_main.csv` | Means by scenario and detector |
-| Figure 4, privacy-utility curves | `dp_sweep.csv`, `per_run_main.csv` | `python -m ambientsensebench.plot_privacy_curve --input outputs/tier2 --output outputs/tier2/figures` (both rows, AUPRC and F1) |
+| Figure 5, privacy-utility curves | `dp_sweep.csv`, `per_run_main.csv` | `python -m ambientsensebench.plot_privacy_curve --input outputs/tier2 --output outputs/tier2/figures` (both rows, AUPRC and F1) |
 | Table 5, threshold-provenance ablation | `dp_sweep.csv` at epsilon 1: `f1_dp_recomputed`, `f1_dp_cleanthr`; clean F1 from `per_run_main.csv` | Means by scenario and detector |
 | Table 6, computational cost (five seeds) | Latency and artefact size: `outputs/paper/dp_edge_summary.csv`; incremental memory: `outputs/tier2/tracemalloc_memory.csv` (Phase E, seeds 0 to 4) | `python -m ambientsensebench benchmark --output outputs/benchmark` then `python -m ambientsensebench.paper_extras --scenario-root outputs/benchmark/scenarios --seeds 0,1,2,3,4 --output outputs/paper`; memory column from Phase E. Timings are machine-specific and support only comparison between detectors |
 | Table 7, analytical state and update cost | none | Derived by hand from the detector definitions in `temporal_detectors.py` and the scikit-learn models |
-| Figure 5, difficulty curve over alpha | `outputs/tier2-alpha/sensitivity_extra.csv` (Phase C, alpha 0.4 and 0.6), `sensitivity_extra.csv` (alpha 0.8 and 1.2), `per_run_main.csv` (alpha 1.0) | `python -m ambientsensebench.plot_alpha_curve` (full command in section 1) |
+| Figure 6, difficulty curve over alpha | `outputs/tier2-alpha/sensitivity_extra.csv` (Phase C, alpha 0.4 and 0.6), `sensitivity_extra.csv` (alpha 0.8 and 1.2), `per_run_main.csv` (alpha 1.0) | `python -m ambientsensebench.plot_alpha_curve` (full command in section 1) |
 | Section 5.2, P02 with a prodrome-free training window | `p02_clean_training_summary.csv` | `python tools/p02_prodrome_check.py` |
 | Table 8, semi-synthetic injection on Aruba | `outputs/aruba/aruba_injection_summary.csv` | `python tools/aruba_injection.py --aruba datasets/CASAS_Aruba/data/aruba.csv` |
 | Appendix Table A.1, paired differences with bootstrap intervals | `stats_paired_tests.csv` | `stats_tests` |

@@ -4,7 +4,13 @@ AmbientSenseBench generates synthetic smart-home sensor events and evaluates ano
 detectors on four routine-change scenarios. It is intended for research use.
 
 The data and labels are simulated. They are not clinical records, diagnoses, or evidence of
-clinical performance.
+clinical performance. Do not use the benchmark for:
+
+- any clinical claim (the profiles are literature assumptions, not patient data);
+- training a model that is deployed without validation on real data;
+- claiming the absolute performance of a detector (only relative comparison under the
+  protocol is supported);
+- anything at the level of an individual.
 
 ## Setup
 
@@ -68,13 +74,14 @@ python -m ambientsensebench.paper_analyses --analysis all --workers 2
 
 | Paper item | Command (after the reference run) |
 | --- | --- |
-| Figures 1 and 2, performance and alarm burden | `python -m ambientsensebench figures --input outputs/tier2/summary_core25.csv --output outputs/tier2/figures` (the summary table is written by `paper_analyses`) |
+| Figure 1, system architecture | `python tools/architecture_figure.py` |
+| Figures 2 and 3, performance and alarm burden | `python -m ambientsensebench figures --input outputs/tier2/summary_core25.csv --output outputs/tier2/figures` (the summary table is written by `paper_analyses`) |
 | Table 2, reference baselines; Table 4, private release; Table 5, threshold ablation | means of `per_run_main.csv` and `dp_sweep.csv` by scenario and detector |
-| Figure 3, score-severity consistency | `paper_analyses --analysis severity` (included above) |
+| Figure 4, score-severity consistency | `paper_analyses --analysis severity` (included above) |
 | Table 3, distributional validation | `python tools/run_ks_validation25.py` |
-| Figure 4, privacy-utility curves | `python -m ambientsensebench.plot_privacy_curve --input outputs/tier2 --output outputs/tier2/figures` |
+| Figure 5, privacy-utility curves | `python -m ambientsensebench.plot_privacy_curve --input outputs/tier2 --output outputs/tier2/figures` |
 | Table 6, computational cost | `python -m ambientsensebench benchmark --output outputs/benchmark`, then `python -m ambientsensebench.paper_extras --scenario-root outputs/benchmark/scenarios --seeds 0,1,2,3,4 --output outputs/paper` |
-| Figure 5, difficulty curve over alpha | `python -m ambientsensebench.tier2_experiments --phase C --alphas 0.4,0.6 --seeds 25 --output outputs/tier2-alpha`, then `python -m ambientsensebench.plot_alpha_curve --sensitivity outputs/tier2/sensitivity_extra.csv outputs/tier2-alpha/sensitivity_extra.csv` |
+| Figure 6, difficulty curve over alpha | `python -m ambientsensebench.tier2_experiments --phase C --alphas 0.4,0.6 --seeds 25 --output outputs/tier2-alpha`, then `python -m ambientsensebench.plot_alpha_curve --sensitivity outputs/tier2/sensitivity_extra.csv outputs/tier2-alpha/sensitivity_extra.csv` |
 | P02 training-window counterfactual (Section 5.2) | `python tools/p02_prodrome_check.py` |
 | Plausibility check against CASAS Aruba | `python -m ambientsensebench.real_comparison --aruba datasets/CASAS_Aruba/data/aruba.csv` |
 | Table 8, semi-synthetic injection on Aruba | `python tools/aruba_injection.py --aruba datasets/CASAS_Aruba/data/aruba.csv` |
