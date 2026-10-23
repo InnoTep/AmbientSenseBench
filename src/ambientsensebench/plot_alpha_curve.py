@@ -35,7 +35,7 @@ import numpy as np
 import pandas as pd
 
 from .benchmark import MODEL_LABELS, SEQUENTIAL_MODELS
-from .plot_benchmark import MODEL_COLORS, SCENARIO_PREVALENCE
+from .plot_benchmark import MODEL_COLORS, PAPER_STYLE, SCENARIO_PREVALENCE, TEXT_WIDTH_IN
 from .plot_privacy_curve import MODEL_MARKERS
 
 COLUMNS = ["alpha", "seed", "scenario", "model_id", "auprc", "f1"]
@@ -60,36 +60,41 @@ def create_alpha_curve(runs: pd.DataFrame, output_directory: Path,
     output_directory.mkdir(parents=True, exist_ok=True)
     means = runs.groupby(["scenario", "model_id", "alpha"])[["auprc", "f1"]].mean()
 
+    with plt.rc_context(PAPER_STYLE):
+        return _draw_alpha_curve(runs, means, output_directory, name)
+
+
+def _draw_alpha_curve(runs, means, output_directory, name):
     scenarios = sorted(runs.scenario.unique())
     rows = (("auprc", "Mean AUPRC"), ("f1", "Mean fixed-threshold F1"))
-    fig, axes = plt.subplots(len(rows), len(scenarios), figsize=(12.5, 6.2),
+    fig, axes = plt.subplots(len(rows), len(scenarios), figsize=(TEXT_WIDTH_IN, 3.8),
                              sharex=True, sharey=True)
     for (metric, ylabel), row_axes in zip(rows, axes):
         for ax, scenario in zip(row_axes, scenarios):
             for model_id in MODEL_LABELS:
                 series = means.loc[(scenario, model_id), metric].sort_index()
                 ax.plot(series.index, series.values, color=MODEL_COLORS[model_id],
-                        marker=MODEL_MARKERS[model_id], markersize=4.5, linewidth=1.6,
+                        marker=MODEL_MARKERS[model_id], markersize=3, linewidth=1.1,
                         linestyle="-" if model_id in SEQUENTIAL_MODELS else "--",
                         label=MODEL_LABELS[model_id])
             if metric == "auprc":
                 ax.axhline(SCENARIO_PREVALENCE[scenario], color="#3a3a3a",
-                           linewidth=1.0, linestyle=":")
+                           linewidth=0.9, linestyle=":")
                 ax.set_title(scenario)
-            else:
-                ax.set_xlabel(r"Profile scale $\alpha$")
             ax.grid(alpha=0.25)
             ax.set_axisbelow(True)
             ax.set_ylim(0, 1.05)
         row_axes[0].set_ylabel(ylabel)
     ax.set_xticks(sorted(runs.alpha.unique()))
+    ax.set_yticks(np.linspace(0, 1, 6))
 
     handles, labels = axes[0][0].get_legend_handles_labels()
-    handles.append(plt.Line2D([0], [0], color="#3a3a3a", linewidth=1.0, linestyle=":"))
-    labels.append("Prevalence (random ranking)")
+    handles.append(plt.Line2D([0], [0], color="#3a3a3a", linewidth=0.9, linestyle=":"))
+    labels.append("Prevalence (random-ranking AUPRC)")
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.0),
-               ncols=6, frameon=False, fontsize=9)
-    fig.subplots_adjust(top=0.88, bottom=0.1, hspace=0.12, wspace=0.08)
+               ncols=3, frameon=False, handlelength=2.2, columnspacing=1.2)
+    fig.supxlabel(r"Profile scale $\alpha$", fontsize=8, y=0.01)
+    fig.subplots_adjust(top=0.82, bottom=0.13, hspace=0.12, wspace=0.16)
 
     out = output_directory / f"{name}.pdf"
     fig.savefig(out, bbox_inches="tight")

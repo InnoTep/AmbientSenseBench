@@ -25,7 +25,7 @@ import pandas as pd
 
 from .benchmark import MODEL_LABELS
 from .paper_analyses import SEVERITY_BINS
-from .plot_benchmark import MODEL_COLORS
+from .plot_benchmark import MODEL_COLORS, PAPER_STYLE, TEXT_WIDTH_IN
 from .plot_privacy_curve import MODEL_MARKERS
 
 
@@ -36,18 +36,19 @@ def create_severity_curve(curve_path: Path, output_directory: Path,
     output_directory = Path(output_directory)
     output_directory.mkdir(parents=True, exist_ok=True)
 
-    with plt.rc_context({"pdf.fonttype": 42}):
-        fig, ax = plt.subplots(figsize=(6.0, 4.0))
+    # Printed at 0.72 of the text width.
+    with plt.rc_context(PAPER_STYLE):
+        fig, ax = plt.subplots(figsize=(0.72 * TEXT_WIDTH_IN, 2.6))
         for model_id in MODEL_LABELS:
             ax.plot(midpoints, curve[model_id], color=MODEL_COLORS[model_id],
-                    marker=MODEL_MARKERS[model_id], markersize=4.5, linewidth=1.6,
+                    marker=MODEL_MARKERS[model_id], markersize=3.5, linewidth=1.2,
                     label=MODEL_LABELS[model_id])
         ax.set_xlabel("Simulated severity (bin midpoint)")
         ax.set_ylabel("Mean within-run score percentile")
         ax.set_title("P04: detector score against underlying severity")
         ax.grid(alpha=0.25)
         ax.set_axisbelow(True)
-        ax.legend(loc="upper left", frameon=False, fontsize=9)
+        ax.legend(loc="upper left", frameon=False, handlelength=1.8)
         fig.tight_layout()
 
         out = output_directory / f"{name}.pdf"

@@ -28,7 +28,7 @@ import numpy as np
 import pandas as pd
 
 from .benchmark import MODEL_LABELS
-from .plot_benchmark import MODEL_COLORS
+from .plot_benchmark import MODEL_COLORS, PAPER_STYLE, TEXT_WIDTH_IN
 
 MODEL_MARKERS = {
     "isolation_forest": "o",
@@ -56,9 +56,9 @@ def create_privacy_curve(dp_sweep_path: Path, per_run_main_path: Path,
     output_directory.mkdir(parents=True, exist_ok=True)
 
     scenarios = sorted(sweep.scenario.unique())
-    with plt.rc_context({"pdf.fonttype": 42}):
+    with plt.rc_context(PAPER_STYLE):
         fig, axes = plt.subplots(len(rows), len(scenarios),
-                                 figsize=(12.5, 3.0 * len(rows) + 0.4),
+                                 figsize=(TEXT_WIDTH_IN, 1.6 * len(rows) + 0.6),
                                  sharex=True, sharey=True, squeeze=False)
         for (metric, clean_metric, ylabel), row_axes in zip(rows, axes):
             for ax, scenario in zip(row_axes, scenarios):
@@ -67,13 +67,13 @@ def create_privacy_curve(dp_sweep_path: Path, per_run_main_path: Path,
                     m = (sub[sub.model_id == model_id]
                          .groupby("epsilon")[metric].mean().sort_index())
                     ax.plot(m.index, m.values, color=MODEL_COLORS[model_id],
-                            marker=MODEL_MARKERS[model_id], markersize=4.5,
-                            linewidth=1.6, label=MODEL_LABELS[model_id])
+                            marker=MODEL_MARKERS[model_id], markersize=3,
+                            linewidth=1.1, label=MODEL_LABELS[model_id])
                     clean_mean = clean[(clean.scenario == scenario)
                                        & (clean.model_id == model_id)][clean_metric].mean()
                     ax.plot([sub.epsilon.max() * 1.35, sub.epsilon.max() * 2.4],
                             [clean_mean, clean_mean], color=MODEL_COLORS[model_id],
-                            linewidth=1.4, linestyle=(0, (2, 1.5)))
+                            linewidth=1.1, linestyle=(0, (2, 1.5)))
                 ax.set_xscale("log")
                 ax.grid(alpha=0.25)
                 ax.set_axisbelow(True)
@@ -81,14 +81,14 @@ def create_privacy_curve(dp_sweep_path: Path, per_run_main_path: Path,
             row_axes[0].set_ylabel(ylabel)
         for ax, scenario in zip(axes[0], scenarios):
             ax.set_title(scenario)
-        for ax in axes[-1]:
-            ax.set_xlabel(r"$\epsilon$ (per feature-day)")
+        fig.supxlabel(r"$\epsilon$ (per feature-day, log scale)", fontsize=8, y=0.01)
+        axes[0][0].set_yticks(np.linspace(0, 1, 6))
         handles, labels = axes[0][0].get_legend_handles_labels()
         handles.append(plt.Line2D([0], [0], color="#3a3a3a", linestyle=(0, (2, 1.5))))
         labels.append("Clean data (no release)")
         fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.0),
-                   ncols=6, frameon=False, fontsize=9)
-        fig.subplots_adjust(top=0.86, bottom=0.12, hspace=0.12, wspace=0.08)
+                   ncols=3, frameon=False, handlelength=1.8, columnspacing=1.2)
+        fig.subplots_adjust(top=0.82, bottom=0.13, hspace=0.12, wspace=0.14)
 
         out = output_directory / f"{name}.pdf"
         fig.savefig(out, bbox_inches="tight")

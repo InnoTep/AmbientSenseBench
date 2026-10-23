@@ -32,11 +32,26 @@ SCENARIO_PREVALENCE = {
 }
 PREVALENCE_STYLE = {"color": "#3a3a3a", "linestyle": (0, (4, 2.4)), "linewidth": 1.1}
 
-# The figure is downscaled to text width in the manuscript, so the hatch
-# marking false-alarm segments must stay visible after ~2x reduction and
-# at screen zoom: use a dense pattern with a heavier hatch line.
-matplotlib.rcParams["hatch.linewidth"] = 1.2
-FALSE_ALARM_HATCH = "///"
+# The paper figures are drawn at the width they are printed at (the elsarticle
+# preprint text width, 390 pt = 5.4 in), so every font size in PAPER_STYLE is the
+# printed size. A figure that spans a fraction of the text width scales its width.
+TEXT_WIDTH_IN = 5.4
+PAPER_STYLE = {
+    "pdf.fonttype": 42,
+    "font.size": 8,
+    "axes.titlesize": 8.5,
+    "axes.labelsize": 8,
+    "xtick.labelsize": 7.5,
+    "ytick.labelsize": 7.5,
+    "legend.fontsize": 7.5,
+    "axes.linewidth": 0.6,
+    "xtick.major.width": 0.6,
+    "ytick.major.width": 0.6,
+    "xtick.major.size": 2.5,
+    "ytick.major.size": 2.5,
+    "hatch.linewidth": 0.7,
+}
+FALSE_ALARM_HATCH = "////"
 
 from .benchmark import MODEL_LABELS
 
@@ -56,9 +71,9 @@ MODEL_COLORS = {
 ERRORBAR_STYLE = {
     "fmt": "none",
     "ecolor": "#3a3a3a",
-    "elinewidth": 0.9,
-    "capsize": 2.0,
-    "capthick": 0.9,
+    "elinewidth": 0.7,
+    "capsize": 1.5,
+    "capthick": 0.7,
 }
 
 
@@ -131,9 +146,13 @@ def create_benchmark_figures(summary_path: Path, output_directory: Path) -> dict
     summary = pd.read_csv(summary_path)
     output_directory = Path(output_directory)
     output_directory.mkdir(parents=True, exist_ok=True)
+    with plt.rc_context(PAPER_STYLE):
+        return _draw_benchmark_figures(summary, output_directory)
 
-    performance_figure, performance_axes = plt.subplots(1, 2, figsize=(10, 4.4))
-    performance_figure.subplots_adjust(top=0.74, bottom=0.18, wspace=0.20)
+
+def _draw_benchmark_figures(summary: pd.DataFrame, output_directory: Path) -> dict[str, Path]:
+    performance_figure, performance_axes = plt.subplots(1, 2, figsize=(TEXT_WIDTH_IN, 2.75))
+    performance_figure.subplots_adjust(top=0.76, bottom=0.12, wspace=0.28)
     _grouped_bars(performance_axes[0], summary, "auprc", "AUPRC")
     performance_axes[0].set_ylim(0, 1.05)
     performance_axes[0].set_title("Ranking performance")
@@ -166,9 +185,11 @@ def create_benchmark_figures(summary_path: Path, output_directory: Path) -> dict
         handles,
         labels,
         loc="upper center",
-        bbox_to_anchor=(0.5, 0.98),
+        bbox_to_anchor=(0.5, 1.0),
         ncols=3,
         frameon=False,
+        handlelength=1.6,
+        columnspacing=1.4,
     )
 
     performance_path = output_directory / "benchmark_performance.pdf"
@@ -176,8 +197,8 @@ def create_benchmark_figures(summary_path: Path, output_directory: Path) -> dict
     performance_figure.savefig(performance_path.with_suffix(".png"), dpi=300, bbox_inches="tight")
     plt.close(performance_figure)
 
-    alarm_figure, alarm_axes = plt.subplots(1, 2, figsize=(10, 4.2))
-    alarm_figure.subplots_adjust(top=0.88, bottom=0.28, wspace=0.20)
+    alarm_figure, alarm_axes = plt.subplots(1, 2, figsize=(TEXT_WIDTH_IN, 2.9))
+    alarm_figure.subplots_adjust(top=0.91, bottom=0.27, wspace=0.28)
     scenario_ids = _scenario_order(summary)
     model_ids = _model_order(summary)
     positions = np.arange(len(scenario_ids))
@@ -201,7 +222,7 @@ def create_benchmark_figures(summary_path: Path, output_directory: Path) -> dict
             bottom=true_alarms,
             facecolor=to_rgba(MODEL_COLORS[model_id], 0.25),
             edgecolor=MODEL_COLORS[model_id],
-            linewidth=0.6,
+            linewidth=0.5,
         )
         alarm_axes[0].bar(
             positions + offset,
@@ -230,14 +251,16 @@ def create_benchmark_figures(summary_path: Path, output_directory: Path) -> dict
     # bound are censored there, not measured. Mark the bound explicitly.
     alarm_axes[1].axhline(14, linestyle=":", linewidth=0.9, color="#8a8a8a", zorder=1)
     alarm_axes[1].set_ylim(0, 15.4)
+    # Placed at the left, above the short P01-P02 bars, so that no error bar
+    # crosses it (the P04 lead times sit at the cap with spread above it).
     alarm_axes[1].text(
-        0.99,
-        14.25,
+        0.02,
+        14.2,
         "14-day search-window cap",
         transform=alarm_axes[1].get_yaxis_transform(),
-        ha="right",
+        ha="left",
         va="bottom",
-        fontsize=8,
+        fontsize=7,
         color="#6b6b6b",
     )
     alarm_axes[1].legend().remove()
@@ -248,9 +271,11 @@ def create_benchmark_figures(summary_path: Path, output_directory: Path) -> dict
         ],
         [*(MODEL_LABELS[model_id] for model_id in model_ids), "False-alarm segment"],
         loc="lower center",
-        bbox_to_anchor=(0.5, 0.01),
-        ncols=2,
+        bbox_to_anchor=(0.5, 0.0),
+        ncols=3,
         frameon=False,
+        handlelength=1.6,
+        columnspacing=1.4,
     )
 
     alarm_path = output_directory / "benchmark_alarm_burden.pdf"
