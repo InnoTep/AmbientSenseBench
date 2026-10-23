@@ -19,6 +19,7 @@ from sklearn.svm import OneClassSVM
 
 from .generate_scenarios import SCENARIOS, generate_scenario
 from .reference_baselines import BASELINE_LABELS
+from .seeding import detector_random_state
 from .temporal_detectors import BocpdDetector, CusumDetector
 from .wp6_evaluation import (
     compute_episode_level_lead_time,
@@ -80,7 +81,8 @@ SUMMARY_METRICS = (
 )
 
 
-def _build_model(model_id: str, training_rows: int):
+def _build_model(model_id: str, training_rows: int, random_state: int):
+    """Build a detector; ``random_state`` seeds the randomised ones (Isolation Forest)."""
     if model_id in PLUGIN_DETECTORS:
         return PLUGIN_DETECTORS[model_id][1](training_rows)
     if model_id == "isolation_forest":
@@ -88,7 +90,7 @@ def _build_model(model_id: str, training_rows: int):
             n_estimators=100,
             contamination="auto",
             n_jobs=1,
-            random_state=42,
+            random_state=random_state,
         )
     if model_id == "one_class_svm":
         return OneClassSVM(kernel="rbf", gamma="scale", nu=0.05)
@@ -134,7 +136,7 @@ def evaluate_detector(
     """Evaluate one detector using the fixed baseline-only training protocol."""
     train_df, test_df = split_train_test(df, scenario_id)
     train_data, test_data, y_test, _ = prepare_train_test_arrays(train_df, test_df)
-    model = _build_model(model_id, len(train_df))
+    model = _build_model(model_id, len(train_df), detector_random_state(seed, scenario_id))
     train_scores, test_scores = _score_model(model_id, model, train_data, test_data)
 
     threshold = compute_fixed_threshold_from_training_scores(train_scores)

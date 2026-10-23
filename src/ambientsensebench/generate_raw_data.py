@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 import argparse
 import yaml
 
+from .seeding import day_seed
+
 PACKAGE_DIR = os.path.dirname(__file__)
 DEFAULT_CONFIG_PATH = os.path.join(PACKAGE_DIR, "config", "profiles.yaml")
 
@@ -65,25 +67,30 @@ def deterministic_seed(
     scenario_id=None,
     scenario_seed_offset=0,
 ):
+    """Seed of one day's draws: its own SeedSequence stream (see ``seeding``).
+
+    The run seed, the scenario's seed offset, the state, and the day index enter as
+    separate entropy words, so no two days of any seed or scenario share a stream.
+    """
     base_seed = 0 if seed_override is None else int(seed_override)
 
-    state_offsets = {
-        "baseline": 1000,
-        "distress": 2000,
-        "scenario_day": 3000,
+    state_codes = {
+        "baseline": 1,
+        "distress": 2,
+        "scenario_day": 3,
     }
 
-    if state not in state_offsets:
+    if state not in state_codes:
         raise ValueError("state must be 'baseline', 'distress', or 'scenario_day'")
 
     if state == "scenario_day" and scenario_id is None:
         raise ValueError("scenario_id must be provided when state='scenario_day'")
 
-    return (
-        base_seed
-        + state_offsets[state]
-        + int(scenario_seed_offset)
-        + day_index
+    return day_seed(
+        base_seed,
+        int(scenario_seed_offset),
+        state_codes[state],
+        int(day_index),
     )
 
 def get_state_profile(state, config_path=None):

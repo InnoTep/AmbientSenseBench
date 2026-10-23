@@ -32,6 +32,7 @@ from .benchmark import (
 )
 from .generate_raw_data import load_profiles
 from .generate_scenarios import DEFAULT_CONFIG_PATH
+from .seeding import detector_random_state, release_rng
 from .temporal_detectors import profile_sequential_detector
 from .validate_scenarios_ks import SCENARIOS as KS_SCENARIOS
 from .validate_scenarios_ks import validate_one_scenario
@@ -105,10 +106,10 @@ def summarise_ks(ks: pd.DataFrame) -> pd.DataFrame:
     return summary
 
 
-def _evaluate(frame: pd.DataFrame, scenario_id: str, model_id: str) -> dict:
+def _evaluate(frame: pd.DataFrame, scenario_id: str, model_id: str, seed: int) -> dict:
     train_df, test_df = split_train_test(frame, scenario_id)
     train_data, test_data, y_test, scaler = prepare_train_test_arrays(train_df, test_df)
-    model = _build_model(model_id, len(train_df))
+    model = _build_model(model_id, len(train_df), detector_random_state(seed, scenario_id))
     train_scores, test_scores = _score_model(model_id, model, train_data, test_data)
     threshold = compute_fixed_threshold_from_training_scores(train_scores)
     alarms = (test_scores >= threshold).astype(int)
@@ -134,14 +135,14 @@ def run_dp_edge(scenario_root: Path, seeds, dp_epsilon: float) -> pd.DataFrame:
         seed_dir = scenario_root / f"seed-{seed}"
         for scenario_id in KS_SCENARIOS:
             clean_frame = load_scenario(str(seed_dir), scenario_id)
-            rng = np.random.default_rng(int(seed) * 100 + 7)
+            rng = release_rng(seed, scenario_id)
             dp_frame = apply_laplace_noise(clean_frame.copy(), epsilon=dp_epsilon, rng=rng)
             for column in ("date", "label", "severity"):
                 dp_frame[column] = clean_frame[column].to_numpy()
 
             for model_id in MODELS:
-                clean = _evaluate(clean_frame, scenario_id, model_id)
-                dp = _evaluate(dp_frame, scenario_id, model_id)
+                clean = _evaluate(clean_frame, scenario_id, model_id, seed)
+                dp = _evaluate(dp_frame, scenario_id, model_id, seed)
 
                 # Edge cost from the clean model (deployment cost estimate).
                 if model_id in SEQUENTIAL_MODELS:
@@ -192,14 +193,14 @@ def run_dp_threshold_ablation(scenario_root: Path, seeds, dp_epsilon: float) -> 
         seed_dir = scenario_root / f"seed-{seed}"
         for scenario_id in KS_SCENARIOS:
             clean_frame = load_scenario(str(seed_dir), scenario_id)
-            rng = np.random.default_rng(int(seed) * 100 + 7)
+            rng = release_rng(seed, scenario_id)
             dp_frame = apply_laplace_noise(clean_frame.copy(), epsilon=dp_epsilon, rng=rng)
             for column in ("date", "label", "severity"):
                 dp_frame[column] = clean_frame[column].to_numpy()
 
             for model_id in MODELS:
-                clean = _evaluate(clean_frame, scenario_id, model_id)
-                dp = _evaluate(dp_frame, scenario_id, model_id)
+                clean = _evaluate(clean_frame, scenario_id, model_id, seed)
+                dp = _evaluate(dp_frame, scenario_id, model_id, seed)
                 alarms_fixed = (dp["test_scores"] >= clean["threshold"]).astype(int)
                 rows.append(
                     {

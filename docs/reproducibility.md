@@ -9,12 +9,15 @@ python -m pip install -e ".[dev]"
 
 with Python 3.10 or later. For an exactly pinned environment, first run
 `python -m pip install -r requirements-paper.txt`: these are the versions (on Python 3.12.4)
-with which the 25-seed reference run was reproduced row for row on 21 October 2026.
+with which the 25-seed reference run of release 1.1.0 was produced on 23 October 2026.
 Generation is deterministic per scenario and seed: the same
 command on the same package version reproduces the same feature matrices
-(`tests/test_feature_matrix_freeze.py` pins the P01 seed-0 matrix). Record the package
-version, Git commit, Python and library versions, and machine details with any archived
-results. Generated results are not committed to the repository.
+(`tests/test_feature_matrix_freeze.py` pins the P01 seed-0 matrix). Every generated day,
+the Laplace noise of each seed and scenario, and Isolation Forest's random state draw from
+separate `numpy.random.SeedSequence` streams (`seeding.py`), so the seeds are independent
+replicates; `tests/test_seed_independence.py` fails if two seeds share a generated day.
+Record the package version, Git commit, Python and library versions, and machine details
+with any archived results. Generated results are not committed to the repository.
 
 ## 1. Reference run (25 seeds)
 
@@ -22,8 +25,8 @@ Every result in the paper except Table 6 and the Aruba check comes from the 25-s
 reference run below. Phase A must run first; the later phases reuse its generated
 scenarios (`outputs/tier2/scenarios/seed-<n>/P0x/`) and its stored per-day scores
 (`outputs/tier2/scores/*.npz`). `--workers` only sets the size of the process pool; the
-results do not depend on it. The whole sequence took about two and a half hours with two
-workers on a laptop-class machine.
+results do not depend on it. The whole sequence, including the revision analyses and
+Table 6, took about an hour with six workers on a four-core laptop (Intel Core i7-8650U).
 
 ```bash
 python -m ambientsensebench.tier2_experiments --phase A --workers 2 --seeds 25 --output outputs/tier2 --scenario-root outputs/tier2/scenarios
@@ -45,6 +48,15 @@ python tools/p02_prodrome_check.py
 python tools/aruba_injection.py --aruba datasets/CASAS_Aruba/data/aruba.csv
 ```
 
+The figures are drawn from the result files:
+
+```bash
+python tools/architecture_figure.py
+python -m ambientsensebench figures --input outputs/tier2/summary_core25.csv --output outputs/tier2/figures
+python -m ambientsensebench.plot_severity_curve --input outputs/tier2 --output outputs/tier2/figures
+python -m ambientsensebench.plot_privacy_curve --input outputs/tier2 --output outputs/tier2/figures
+```
+
 | Phase | What it does | Output files |
 | --- | --- | --- |
 | A | Generates 25 seeds x 4 scenarios; evaluates the 5 core detectors and the 3 reference baselines; stores per-day scores | `per_run_main.csv`, `scores/*.npz` |
@@ -61,10 +73,16 @@ python tools/aruba_injection.py --aruba datasets/CASAS_Aruba/data/aruba.csv
 | `tools/aruba_injection.py` | Distress shift injected into the CASAS Aruba baseline; eight detectors clean and under the release (25 noise draws) | `outputs/aruba/aruba_injection_summary.csv` |
 
 **SciPy version.** The Wilcoxon p-values depend on how the installed SciPy treats ties and
-zero differences. With SciPy 1.14, `stats_tests` reproduces every mean difference,
-bootstrap interval, and effect size of the paper exactly, but some Holm-corrected p-values
-move by up to 0.007 and no significance verdict changes. Record the SciPy version with any
-archived results.
+zero differences. The paper's p-values come from SciPy 1.14.1, the version pinned in
+`requirements-paper.txt`. Record the SciPy version with any archived results.
+
+**Release 1.1.0.** Release 1.0.0 seeded each generated day with the sum of the run seed, a
+state offset, the scenario's seed offset, and the day index, so seed s+1 replayed seed s
+shifted by one day and the four scenarios reused each other's days; the Laplace noise was
+shared by the four scenarios of a seed, and Isolation Forest used a fixed random state.
+Release 1.1.0 derives all three from independent SeedSequence streams. Every generated
+feature matrix and every result changed, so results produced with 1.0.0 are not comparable
+with those of 1.1.0.
 
 **Phase letters.** Before release 1.0.0 the sweeps and extras phases were called E and F
 and the letter D was unused; the experiment logs from the paper revision use those older
@@ -77,8 +95,8 @@ Phase D covers only P04 because the first distress onsets of P01, P02 and P03 fa
 
 Every row below is produced by code in this repository. Numbering follows the revised
 manuscript (Table 8 is the Aruba injection; the former Table 8, best detector per alpha, is
-replaced by Figure 6). A rerun of Phase A on 21 October 2026 reproduced all 800 rows of the
-paper's `per_run_main.csv` exactly.
+replaced by Figure 6). Every number in the paper comes from the release-1.1.0 reference run
+of 23 October 2026.
 
 | Paper item | Source file(s) | Command or derivation |
 | --- | --- | --- |
@@ -87,7 +105,7 @@ paper's `per_run_main.csv` exactly.
 | Figure 2, mean AUPRC and F1 across 25 seeds | `outputs/tier2/summary_core25.csv` (`paper_analyses --analysis summary`, from Phase A) | `python -m ambientsensebench figures --input outputs/tier2/summary_core25.csv --output outputs/tier2/figures` |
 | Figure 3, alarm composition and lead time | same | Same command; both figures are written together |
 | Table 2, reference baselines | `per_run_main.csv`, the three baseline rows | Mean `auprc` and `f1_fixed_threshold` by scenario and detector |
-| Figure 4, score-severity consistency (P04) | `severity_consistency.csv`, `severity_curve_p04.csv` | `python -m ambientsensebench.paper_analyses --analysis severity`: Spearman correlation between each stored test-window score and the simulated severity; the P04 curve is the mean within-run score percentile per tenth of severity |
+| Figure 4, score-severity consistency (P04) | `severity_consistency.csv`, `severity_curve_p04.csv` | `python -m ambientsensebench.paper_analyses --analysis severity`: Spearman correlation between each stored test-window score and the simulated severity; the P04 curve is the mean within-run score percentile per tenth of severity, drawn by `python -m ambientsensebench.plot_severity_curve` |
 | Table 3, distributional validation (200 groups) | `outputs/tier2/ks_validation25/ks_feature_summary.csv` | `python tools/run_ks_validation25.py` |
 | Table 4, AUPRC and F1 at epsilon = 1 | `dp_sweep.csv` (Phase B) rows with `epsilon == 1.0`; clean columns from `per_run_main.csv` | Means by scenario and detector |
 | Figure 5, privacy-utility curves | `dp_sweep.csv`, `per_run_main.csv` | `python -m ambientsensebench.plot_privacy_curve --input outputs/tier2 --output outputs/tier2/figures` (both rows, AUPRC and F1) |

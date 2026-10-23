@@ -11,9 +11,11 @@ process.
 
 For every simulated day, `generate_one_day`:
 
-1. Seeds the random generator deterministically from the scenario seed, behavioural
-   state, and day index (`deterministic_seed`), which is what makes the corpus exactly
-   reproducible.
+1. Seeds the random generator from the day's own `numpy.random.SeedSequence` stream,
+   derived from the run seed, the scenario's seed offset, the state, and the day index
+   as separate entropy words (`deterministic_seed`, `seeding.py`). No two days of any
+   seed or scenario share draws, the corpus is exactly reproducible, and a day's draws do
+   not depend on its severity.
 2. Draws the day's routine parameters **independently** from the active profile
    (`config/profiles.yaml`): wake time and sleep duration (Gaussian), meal, social,
    and night-event counts (rounded Gaussian / Poisson), target mobility and
@@ -50,8 +52,8 @@ In scenario mode the two profiles are interpolated by a continuous severity valu
   the sampled time), genuinely informative for the count and compositional features,
   whose extractor transforms are lossy.
 - **Cross-feature independence is by construction.** Each feature has its own
-  independent daily sampler, so baseline cross-feature correlations are near zero
-  (the largest observed, |r| = 0.17, is mobility vs. room-transition entropy, which
+  independent daily sampler, so baseline cross-feature correlations are weak
+  (the largest observed, |r| = 0.27, is mobility vs. room-transition entropy, which
   share a generating mechanism: the mobility walk supplies part of the room sequence the
   entropy transform reads). Real routines couple these features; a
   behaviour-first generator with an explicit activity layer is future work.

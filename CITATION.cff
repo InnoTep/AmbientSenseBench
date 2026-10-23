@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If you use AmbientSenseBench, please cite it using the metadata in this file."
 type: software
 title: "AmbientSenseBench: Reproducible Synthetic Event-Level Scenarios for Privacy-Aware Home-Routine Monitoring"
-version: 1.0.0
-date-released: 2026-10-05
+version: 1.1.0
+date-released: 2026-10-23
 license: Apache-2.0
 repository-code: "https://github.com/InnoTep/AmbientSenseBench"
 # The Zenodo DOI 

@@ -14,7 +14,7 @@ from ambientsensebench.generate_scenarios import generate_scenario
 # paper's 25-seed reference run. The digest is taken over LF-normalised bytes so that
 # it is platform-independent: the csv writer emits CRLF on Windows and LF elsewhere,
 # and only the line terminator differs between them.
-FROZEN_SHA256 = "c43981057047bdc272f2d6d2b7a7de6d9be0afd7bf4217aed3fafc664f700e78"
+FROZEN_SHA256 = "1b63d1db1a1d43627812643799d9d8a337a3b0bc048fbd144bf130988d4a8af7"
 
 
 def test_daily_feature_matrix_is_frozen(tmp_path):

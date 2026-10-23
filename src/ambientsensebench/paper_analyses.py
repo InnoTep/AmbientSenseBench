@@ -31,6 +31,7 @@ from .apply_wp7_dp_noise import apply_laplace_noise
 from .benchmark import summarise_results
 from .generate_scenarios import SCENARIOS
 from .reference_baselines import BASELINE_LABELS
+from .seeding import release_rng
 from .tier2_experiments import (
     ALL_MODELS,
     CORE_MODELS,
@@ -60,7 +61,7 @@ def _persistence(alarms: np.ndarray, run_length: int = 3) -> np.ndarray:
 
 def _noisy_frame(scen_root, seed, scenario, epsilon):
     clean = load_scenario(str(Path(scen_root) / f"seed-{seed}"), scenario)
-    rng = np.random.default_rng(int(seed) * 100 + 7)  # phase B seeding, per epsilon
+    rng = release_rng(seed, scenario)  # phase B seeding, per epsilon
     noisy = apply_laplace_noise(clean.copy(), epsilon=epsilon, rng=rng)
     for column in ("date", "label", "severity"):
         noisy[column] = clean[column].to_numpy()
@@ -110,7 +111,7 @@ def _dp_baselines_unit(args):
     for eps in EPSILONS:
         frame = _noisy_frame(scen_root, seed, scenario, eps)
         for model_id in BASELINE_LABELS:
-            r = _evaluate_frame(frame, scenario, model_id)
+            r = _evaluate_frame(frame, scenario, model_id, seed)
             stored = np.load(Path(score_dir) / f"s{seed}_{scenario}_{model_id}.npz")
             thr_clean = compute_fixed_threshold_from_training_scores(stored["train_scores"])
             alarms_clean_thr = (r["test_scores"] >= thr_clean).astype(int)
@@ -129,7 +130,7 @@ def _dp_persistence_unit(args):
     frame = _noisy_frame(scen_root, seed, scenario, 1.0)
     rows = []
     for model_id in CORE_MODELS:
-        r = _evaluate_frame(frame, scenario, model_id)
+        r = _evaluate_frame(frame, scenario, model_id, seed)
         alarms = (r["test_scores"] >= r["threshold"]).astype(int)
         persist = _persistence(alarms)
         y = r["y_test"]

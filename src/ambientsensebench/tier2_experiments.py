@@ -57,6 +57,7 @@ from .benchmark import (
 )
 from .generate_scenarios import SCENARIOS, generate_scenario
 from .reference_baselines import BASELINE_LABELS, score_baseline
+from .seeding import detector_random_state, release_rng
 from .sensitivity import write_perturbed_config
 from .temporal_detectors import BocpdDetector, CusumDetector
 from .wp6_evaluation import (
@@ -107,14 +108,14 @@ def _init_worker(plugins=()):
     _activate_plugins(plugins)
 
 
-def _score_any(model_id, train_data, test_data, n_train):
+def _score_any(model_id, train_data, test_data, n_train, random_state):
     if model_id in MODEL_LABELS or model_id in PLUGIN_DETECTORS:
-        model = _build_model(model_id, n_train)
+        model = _build_model(model_id, n_train, random_state)
         return _score_model(model_id, model, train_data, test_data)
     return score_baseline(model_id, train_data, test_data)
 
 
-def _evaluate_frame(frame, scenario, model_id, train_days=None):
+def _evaluate_frame(frame, scenario, model_id, seed, train_days=None):
     if train_days is None:
         train_df, test_df = split_train_test(frame, scenario)
     else:
@@ -123,7 +124,8 @@ def _evaluate_frame(frame, scenario, model_id, train_days=None):
         if not (train_df["label"] == "baseline").all():
             raise ValueError(f"{scenario}: window {train_days} not baseline-only")
     train_data, test_data, y_test, _ = prepare_train_test_arrays(train_df, test_df)
-    train_scores, test_scores = _score_any(model_id, train_data, test_data, len(train_df))
+    train_scores, test_scores = _score_any(model_id, train_data, test_data, len(train_df),
+                                           detector_random_state(seed, scenario))
     train_scores = np.asarray(train_scores, float)
     test_scores = np.asarray(test_scores, float)
     threshold = compute_fixed_threshold_from_training_scores(train_scores)
@@ -160,7 +162,7 @@ def _phase_a_unit(args):
     frame = load_scenario(str(seed_root), scenario)
     rows = []
     for model_id in ALL_MODELS:
-        r = _evaluate_frame(frame, scenario, model_id)
+        r = _evaluate_frame(frame, scenario, model_id, seed)
         np.savez_compressed(
             Path(score_dir) / f"s{seed}_{scenario}_{model_id}.npz",
             train_scores=r["train_scores"], test_scores=r["test_scores"],
@@ -205,12 +207,12 @@ def _phase_b_unit(args):
     clean_frame = load_scenario(str(seed_root), scenario)
     rows = []
     for eps in EPSILONS:
-        rng = np.random.default_rng(int(seed) * 100 + 7)
+        rng = release_rng(seed, scenario)
         dp_frame = apply_laplace_noise(clean_frame.copy(), epsilon=eps, rng=rng)
         for column in ("date", "label", "severity"):
             dp_frame[column] = clean_frame[column].to_numpy()
         for model_id in CORE_MODELS:
-            r = _evaluate_frame(dp_frame, scenario, model_id)
+            r = _evaluate_frame(dp_frame, scenario, model_id, seed)
             stored = np.load(Path(score_dir) / f"s{seed}_{scenario}_{model_id}.npz")
             thr_clean = compute_fixed_threshold_from_training_scores(stored["train_scores"])
             alarms_fixed = (r["test_scores"] >= thr_clean).astype(int)
@@ -253,7 +255,7 @@ def _phase_c_unit(args):
                               config_path=cfg_path)
             frame = load_scenario(tmp, scenario)
             for model_id in CORE_MODELS:
-                r = _evaluate_frame(frame, scenario, model_id)
+                r = _evaluate_frame(frame, scenario, model_id, seed)
                 rows.append({
                     "alpha": alpha, "seed": seed, "scenario": scenario,
                     "model_id": model_id, "model": ALL_MODELS[model_id],
@@ -320,7 +322,8 @@ def _phase_d_unit(args):
         train = scaler.transform(train_df[columns].values)
         test = scaler.transform(test_df[columns].values)
         for model_id in CORE_MODELS:
-            trs, tes = _score_any(model_id, train, test, len(train_df))
+            trs, tes = _score_any(model_id, train, test, len(train_df),
+                                  detector_random_state(seed, scenario))
             trs, tes = np.asarray(trs, float), np.asarray(tes, float)
             thr = compute_fixed_threshold_from_training_scores(trs)
             rows.append({"kind": kind, "param": param, "seed": seed,
@@ -329,7 +332,7 @@ def _phase_d_unit(args):
                          "f1": compute_f1_at_fixed_threshold(y, (tes >= thr).astype(int))})
     elif kind == "window":
         for model_id in CORE_MODELS:
-            r = _evaluate_frame(frame, scenario, model_id, train_days=param)
+            r = _evaluate_frame(frame, scenario, model_id, seed, train_days=param)
             rows.append({"kind": kind, "param": param, "seed": seed,
                          "scenario": scenario, "model_id": model_id,
                          "auprc": r["auprc"], "f1": r["f1"], "fp": r["fp"]})
@@ -371,7 +374,8 @@ def run_phase_e(out, scen_root):
             for model_id in CORE_MODELS:
                 tracemalloc.start()
                 base = tracemalloc.get_traced_memory()[0]
-                _score_any(model_id, train, test, len(train_df))
+                _score_any(model_id, train, test, len(train_df),
+                           detector_random_state(seed, scenario))
                 peak = tracemalloc.get_traced_memory()[1]
                 tracemalloc.stop()
                 rows.append({"seed": seed, "scenario": scenario, "model_id": model_id,

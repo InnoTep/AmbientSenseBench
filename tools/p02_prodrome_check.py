@@ -49,7 +49,7 @@ def _unit(seed):
             generate_scenarios.generate_scenario(SCENARIO, seed_override=seed, output_root=tmp)
         frame = load_scenario(tmp, SCENARIO)
         for model_id, label in ALL_MODELS.items():
-            r = _evaluate_frame(frame, SCENARIO, model_id)
+            r = _evaluate_frame(frame, SCENARIO, model_id, seed)
             rows.append({
                 "seed": seed, "scenario": SCENARIO, "model_id": model_id, "model": label,
                 "auprc": r["auprc"], "f1_fixed_threshold": r["f1"],

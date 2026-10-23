@@ -51,6 +51,7 @@ from ambientsensebench.feature_extraction import (  # noqa: E402
 from ambientsensebench.generate_raw_data import load_profiles  # noqa: E402
 from ambientsensebench.generate_scenarios import DEFAULT_CONFIG_PATH  # noqa: E402
 from ambientsensebench.real_comparison import aruba_events_by_day  # noqa: E402
+from ambientsensebench.seeding import detector_random_state, release_rng  # noqa: E402
 from ambientsensebench.tier2_experiments import ALL_MODELS, _score_any  # noqa: E402
 from ambientsensebench.wp6_evaluation import (  # noqa: E402
     compute_episode_level_lead_time,
@@ -71,6 +72,7 @@ PROFILE_KEYS = {
 SEQUENTIAL = ("bocpd", "cusum", "ewma")
 TRAIN_DAYS = 40
 EPSILON = 1.0
+HOME = "aruba"  # identifies the noise and Isolation Forest streams (see seeding)
 
 
 def aruba_features(aruba_path: str) -> pd.DataFrame:
@@ -126,11 +128,11 @@ def profile_shift_and_scale():
     return shift, scale
 
 
-def evaluate(values: np.ndarray, labels: np.ndarray, model_id: str) -> dict:
+def evaluate(values: np.ndarray, labels: np.ndarray, model_id: str, random_state: int) -> dict:
     scaler = StandardScaler().fit(values[:TRAIN_DAYS])
     train = scaler.transform(values[:TRAIN_DAYS])
     test = scaler.transform(values[TRAIN_DAYS:])
-    train_scores, test_scores = _score_any(model_id, train, test, TRAIN_DAYS)
+    train_scores, test_scores = _score_any(model_id, train, test, TRAIN_DAYS, random_state)
     threshold = compute_fixed_threshold_from_training_scores(np.asarray(train_scores, float))
     alarms = (np.asarray(test_scores, float) >= threshold).astype(int)
     persist = np.zeros_like(alarms)
@@ -179,15 +181,17 @@ def main():
         injected = base + sev[:, None] * shift_vec[None, :]
         conditions = [("clean", -1, injected)]
         for draw in range(args.draws):
-            rng = np.random.default_rng(1000 + draw)
+            rng = release_rng(draw, HOME)
             noisy = injected + rng.laplace(0.0, noise_scale, size=injected.shape)
             conditions.append(("eps1", draw, np.clip(noisy, 0.0, upper)))
         for condition, draw, values in conditions:
+            # the clean run's Isolation Forest takes the random state of draw 0
+            random_state = detector_random_state(max(draw, 0), HOME)
             for model_id, label in ALL_MODELS.items():
                 rows.append({"episode": kind, "condition": condition, "draw": draw,
                              "model_id": model_id, "model": label,
                              "family": "sequential" if model_id in SEQUENTIAL else "memoryless",
-                             **evaluate(values, labels, model_id)})
+                             **evaluate(values, labels, model_id, random_state)})
         print(f"[{kind}] {int((labels[TRAIN_DAYS:] == 'distress').sum())} positive test days",
               flush=True)
 

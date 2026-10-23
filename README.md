@@ -61,9 +61,10 @@ paper to the command that produces it.
 ## Reproducing the paper
 
 Run from the repository root. The 25-seed reference run comes first, because the other
-commands reuse its scenarios and stored scores (about two and a half hours with two
-workers); [`docs/reproducibility.md`](docs/reproducibility.md) gives the output file of each
-step and the full mapping.
+commands reuse its scenarios and stored scores (the whole sequence takes about an hour on a
+four-core laptop with `--workers 6`; the results do not depend on the number of workers);
+[`docs/reproducibility.md`](docs/reproducibility.md) gives the output file of each step and
+the full mapping.
 
 ```bash
 for phase in A B C D; do python -m ambientsensebench.tier2_experiments --phase $phase --workers 2 --seeds 25; done
@@ -77,7 +78,7 @@ python -m ambientsensebench.paper_analyses --analysis all --workers 2
 | Figure 1, system architecture | `python tools/architecture_figure.py` |
 | Figures 2 and 3, performance and alarm burden | `python -m ambientsensebench figures --input outputs/tier2/summary_core25.csv --output outputs/tier2/figures` (the summary table is written by `paper_analyses`) |
 | Table 2, reference baselines; Table 4, private release; Table 5, threshold ablation | means of `per_run_main.csv` and `dp_sweep.csv` by scenario and detector |
-| Figure 4, score-severity consistency | `paper_analyses --analysis severity` (included above) |
+| Figure 4, score-severity consistency | `paper_analyses --analysis severity` (included above), then `python -m ambientsensebench.plot_severity_curve --input outputs/tier2 --output outputs/tier2/figures` |
 | Table 3, distributional validation | `python tools/run_ks_validation25.py` |
 | Figure 5, privacy-utility curves | `python -m ambientsensebench.plot_privacy_curve --input outputs/tier2 --output outputs/tier2/figures` |
 | Table 6, computational cost | `python -m ambientsensebench benchmark --output outputs/benchmark`, then `python -m ambientsensebench.paper_extras --scenario-root outputs/benchmark/scenarios --seeds 0,1,2,3,4 --output outputs/paper` |
